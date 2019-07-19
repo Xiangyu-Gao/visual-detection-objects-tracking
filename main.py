@@ -1,17 +1,17 @@
 import numpy as np
 import os
-import csv
+#import csv
 
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import glob
-from moviepy.editor import VideoFileClip
 from collections import deque
 from sklearn.utils.linear_assignment_ import linear_assignment
 
 import helpers
-#import detector
 import tracker
+from tracker import Tracker
+from helpers import box_iou2
 
 # Global variables to be used by funcitons of VideoFileClop
 frame_count = 0 # frame counter
@@ -29,8 +29,10 @@ debug = True
 
 def get_z_box(alist):
     z_box = []
-    for elem in alsit:
-        z_box.append([])
+    # print(alist)
+    for elem in alist:
+        z_box.append([float(elem[5]), float(elem[4]), float(elem[7]), float(elem[6])])
+    
     return z_box
 
 def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
@@ -84,7 +86,7 @@ def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
 
 def pipeline(z_box):
     '''
-    Pipeline function for detection and tracking
+    Pipeline function for tracking
     '''
     global frame_count
     global tracker_list
@@ -93,7 +95,7 @@ def pipeline(z_box):
     global track_id_list
     global debug
     
-    frame_count+=1
+    frame_count += 1
     
     # img_dim = (img.shape[1], img.shape[0])
 
@@ -128,7 +130,7 @@ def pipeline(z_box):
         for trk_idx, det_idx in matched:
             z = z_box[det_idx]
             z = np.expand_dims(z, axis=0).T
-            tmp_trk= tracker_list[trk_idx]
+            tmp_trk = tracker_list[trk_idx]
             tmp_trk.kalman_filter(z)
             xx = tmp_trk.x_state.T[0].tolist()
             xx =[xx[0], xx[2], xx[4], xx[6]]
@@ -191,34 +193,42 @@ def pipeline(z_box):
        print('Ending good tracker_list: ',len(good_tracker_list))
     
        
-    return id_list
+    return tracker_list
 
 
 def main():
 
     base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
     for subfolder in os.listdir(base_directory):
-        sub_directory = base_directory + '/' + subfolder + '/dets_3d/'
-        store_directory = base_directory + '/' + subfolder + '/dets_3d_filtered/'
-        if not os.path.exists(store_directory):
-            os.makedirs(store_directory)
+        sub_directory = base_directory + '/' + subfolder + '/dets_3d_filtered/'
+        # if not os.path.exists(store_directory):
+        #     os.makedirs(store_directory)
 
         for file_name in os.listdir(sub_directory):
             file_directory = sub_directory + file_name
-            store_file_directory = store_directory + file_name
+            # store_file_directory = store_directory + file_name
 
             # input()
-            # file_name = 'D:/RawData/3D_loc_labels/2019_04_09_3d_loc_labels/2019_04_09_bms1000/dets_3d/0000000184.txt'
             with open(file_directory) as f:
                 data = f.read().splitlines()
                 alist = []
                 for line in data:
-                    alist.append(line.split())
+                    if line == '':
+                        pass
+                    else:
+                        alist.append(line.split(','))
 
             f.close()
 
-            print(alist[0][3])
-            input()
+            # print(alist[0][3])
+            # print(alist[0])
+            # input()
+            z_box = get_z_box(alist)
+            print(z_box)
+
+            tracker_list = pipeline(z_box) 
+            print(tracker_list)
+            # input()
 
             
 
@@ -227,24 +237,24 @@ def main():
 if __name__ == "__main__":
     main()
 
-    det = detector.CarDetector()
+    # det = detector.CarDetector()
     
-    if debug: # test on a sequence of images
-        images = [plt.imread(file) for file in glob.glob('./test_images/*.jpg')]
+    # if debug: # test on a sequence of images
+    #     images = [plt.imread(file) for file in glob.glob('./test_images/*.jpg')]
         
-        for i in range(len(images))[0:7]:
-             image = images[i]
-             image_box = pipeline(image)   
-             plt.imshow(image_box)
-             plt.show()
+    #     for i in range(len(images))[0:7]:
+    #          image = images[i]
+    #          image_box = pipeline(image)   
+    #          plt.imshow(image_box)
+    #          plt.show()
            
-    else: # test on a video file.
+    # else: # test on a video file.
         
-        start=time.time()
-        output = 'test_v7.mp4'
-        clip1 = VideoFileClip("project_video.mp4")#.subclip(4,49) # The first 8 seconds doesn't have any cars...
-        clip = clip1.fl_image(pipeline)
-        clip.write_videofile(output, audio=False)
-        end  = time.time()
+    #     start=time.time()
+    #     output = 'test_v7.mp4'
+    #     clip1 = VideoFileClip("project_video.mp4")#.subclip(4,49) # The first 8 seconds doesn't have any cars...
+    #     clip = clip1.fl_image(pipeline)
+    #     clip.write_videofile(output, audio=False)
+    #     end  = time.time()
         
-        print(round(end-start, 2), 'Seconds to finish')
+    #     print(round(end-start, 2), 'Seconds to finish')
