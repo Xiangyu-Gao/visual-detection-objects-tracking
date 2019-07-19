@@ -135,7 +135,7 @@ def pipeline(z_box):
             xx = tmp_trk.x_state.T[0].tolist()
             xx =[xx[0], xx[2], xx[4], xx[6]]
             x_box[trk_idx] = xx
-            tmp_trk.box =xx
+            tmp_trk.box = xx
             tmp_trk.hits += 1
             tmp_trk.no_losses = 0
     
@@ -164,8 +164,8 @@ def pipeline(z_box):
             tmp_trk.predict_only()
             xx = tmp_trk.x_state
             xx = xx.T[0].tolist()
-            xx =[xx[0], xx[2], xx[4], xx[6]]
-            tmp_trk.box =xx
+            xx = [xx[0], xx[2], xx[4], xx[6]]
+            tmp_trk.box = xx
             x_box[trk_idx] = xx
                    
        
@@ -224,11 +224,11 @@ def main():
             # print(alist[0])
             # input()
             z_box = get_z_box(alist)
-            print(z_box)
+            #print(z_box)
 
             tracker_list = pipeline(z_box) 
             print(tracker_list)
-            # input()
+            input()
 
             
 
