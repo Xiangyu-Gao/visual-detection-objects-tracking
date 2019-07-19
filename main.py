@@ -27,6 +27,11 @@ track_id_list= deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'])
 
 debug = True
 
+def get_z_box(alist):
+    z_box = []
+    for elem in alsit:
+        z_box.append([])
+    return z_box
 
 def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
     '''
@@ -77,7 +82,7 @@ def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
 
-def pipeline(img):
+def pipeline(z_box):
     '''
     Pipeline function for detection and tracking
     '''
@@ -92,9 +97,9 @@ def pipeline(img):
     
     # img_dim = (img.shape[1], img.shape[0])
 
-    z_box = det.get_localization(img) # measurement
-    if debug:
-       print('Frame:', frame_count)
+    # z_box = det.get_localization(img) # measurement
+    # if debug:
+    #    print('Frame:', frame_count)
        
     x_box =[]
     # if debug: 
@@ -119,7 +124,7 @@ def pipeline(img):
     
          
     # Deal with matched detections     
-    if matched.size >0:
+    if matched.size > 0:
         for trk_idx, det_idx in matched:
             z = z_box[det_idx]
             z = np.expand_dims(z, axis=0).T
@@ -133,7 +138,7 @@ def pipeline(img):
             tmp_trk.no_losses = 0
     
     # Deal with unmatched detections      
-    if len(unmatched_dets)>0:
+    if len(unmatched_dets) > 0:
         for idx in unmatched_dets:
             z = z_box[idx]
             z = np.expand_dims(z, axis=0).T
@@ -186,7 +191,7 @@ def pipeline(img):
        print('Ending good tracker_list: ',len(good_tracker_list))
     
        
-    return img
+    return id_list
 
 
 def main():
@@ -212,8 +217,10 @@ def main():
 
             f.close()
 
-        print(alist)
-        input()
+            print(alist[0][3])
+            input()
+
+            
 
 
 
