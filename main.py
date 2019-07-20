@@ -1,10 +1,9 @@
 import numpy as np
 import os
 import csv
-
 import numpy as np
-#import matplotlib.pyplot as plt
 import glob
+import itertools
 from collections import deque
 from sklearn.utils.linear_assignment_ import linear_assignment
 
@@ -13,19 +12,17 @@ import tracker
 from tracker import Tracker
 from helpers import box_iou2
 
+
+
 # Global variables to be used by funcitons of VideoFileClop
 frame_count = 0 # frame counter
-
 max_age = 5  # no.of consecutive unmatched detection before
              # a track is deleted
-
 min_hits = 2  # no. of consecutive matches needed to establish a track
-
 tracker_list = [] # list for trackers
 # list for track ID
 track_id_list = deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',\
     'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
-
 debug = False
 
 
@@ -105,6 +102,28 @@ def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
 
+# utility function for cluster_traj_portions function 
+def group_ranges(L):
+    """
+    Collapses a list of integers into a list of the start and end of
+    consecutive runs of numbers. Returns a generator of generators.
+    >>> [list(x) for x in group_ranges([1, 2, 3, 5, 6, 8])]
+    [[1, 3], [5, 6], [8]]
+    """
+    for w, z in itertools.groupby(L, lambda x, y=itertools.count(): next(y)-x):
+        grouped = list(z)
+        yield (x for x in [grouped[0], grouped[-1]][:len(grouped)])
+
+
+def cluster_traj_portions(traj_list):
+    for column in traj_list.T:
+        valid_idx = np.where(column != -1)
+        print(valid_idx)
+        for x in group_ranges(valid_idx):
+            print(x)
+        input()
+
+
 def pipeline(z_box):
     '''
     Pipeline function for tracking
@@ -118,26 +137,15 @@ def pipeline(z_box):
     
     frame_count += 1
     
-    # img_dim = (img.shape[1], img.shape[0])
-
-    # z_box = det.get_localization(img) # measurement
-    # if debug:
-    #    print('Frame:', frame_count)
-       
     x_box = []
     x_id = []
-    # if debug: 
-    #     for i in range(len(z_box)):
-    #        img1= helpers.draw_box_label(img, z_box[i], box_color=(255, 0, 0))
-    #        plt.imshow(img1)
-    #     plt.show()
     
     if len(tracker_list) > 0:
         for trk in tracker_list:
             x_box.append(trk.box)
             x_id.append(trk.id)
     
-    # print(track_id_list)
+    print(track_id_list)
     matched, unmatched_dets, unmatched_trks \
     = assign_detections_to_trackers(x_box, z_box, iou_thrd = 0.3)  
     if debug:
@@ -215,7 +223,6 @@ def pipeline(z_box):
     if debug:
        print('Ending tracker_list: ',len(tracker_list))
        print('Ending good tracker_list: ',len(good_tracker_list))
-    
        
     return matched, x_id
 
@@ -272,9 +279,6 @@ def KF_Tracking(base_directory):
 
             if len(new_list) > 0:
 
-                # print(new_list)
-                # input()
-
                 # write file
                 with open(store_file_directory, 'w') as g:
                     csv_writer = csv.writer(g)
@@ -288,7 +292,7 @@ def KF_Tracking(base_directory):
         print('finished '+subfolder+file_name)
        
             
-def filter_tracking():
+def filter_tracking(base_directory):
 
     for subfolder in os.listdir(base_directory):
         sub_directory = base_directory + '/' + subfolder + '/dets_3d_track/'
@@ -298,28 +302,11 @@ def filter_tracking():
 
         frame_idx = 0
         traj_list = []
+        traj_pre_idx = []
 
-        # read the last file and get the number of trajectories
-        last_file = os.listdir(sub_directory)[-1]
-        file_directory = sub_directory + last_file
-        with open(file_directory) as f:
-            data = f.read().splitlines()
-            alist = []
-            for line in data:
-                if line == '':
-                    pass
-                else:
-                    alist.append(line.split(','))
-        f.close()
 
         # get the number of trajectories
-        tra_max = 0
-        for elem in alist:
-            if int(elem[-1]) >= tra_max:
-                tra_max = int(elem[-1]) 
-            else:
-                pass
-        tra_max += 1
+        tra_max = 20
 
         for file_name in os.listdir(sub_directory):
             file_directory = sub_directory + file_name
@@ -334,16 +321,41 @@ def filter_tracking():
                         pass
                     else:
                         alist.append(line.split(','))
-
             f.close()
-            temp_traj_elem = np.ones(tra_max)
-            
-            frame_idx += 1
-            
 
+            temp_traj_elem = np.ones(tra_max)
+            temp_traj_elem = -1*temp_traj_elem
+            temp_traj_idx = np.ones(tra_max)
+            temp_traj_idx = -1*temp_traj_idx
+            for e,elem in enumerate(alist):
+                ix = int(elem[-1])
+                i_class = int(elem[0])
+                if ix is not -1:
+                    temp_traj_elem[ix] = i_class
+                    temp_traj_idx[ix] = e
+                else:
+                    pass
+            
+            traj_list.append(temp_traj_elem)
+            traj_pre_idx.append(temp_traj_idx)
+            frame_idx += 1
+            # print(file_name)
+            # print(temp_traj_elem)
+            # print(temp_traj_idx)
+            # input()
+        
+        # print(traj_list)
+        traj_list = np.asarray(traj_list)
+        traj_pre_idx = np.asarray(traj_pre_idx)
+        # print(np.where(traj_list[:,5] != -1))
+
+        # clustering small trajectory portions
+        cluster_traj_portions(traj_list)
 
 
 if __name__ == "__main__":
     base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
-    KF_Tracking(base_directory)
+    # KF_Tracking(base_directory)
     filter_tracking(base_directory)
+
+
