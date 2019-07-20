@@ -1,6 +1,6 @@
 import numpy as np
 import os
-#import csv
+import csv
 
 import numpy as np
 #import matplotlib.pyplot as plt
@@ -16,16 +16,18 @@ from helpers import box_iou2
 # Global variables to be used by funcitons of VideoFileClop
 frame_count = 0 # frame counter
 
-max_age = 4  # no.of consecutive unmatched detection before 
+max_age = 5  # no.of consecutive unmatched detection before
              # a track is deleted
 
-min_hits =1  # no. of consecutive matches needed to establish a track
+min_hits = 2  # no. of consecutive matches needed to establish a track
 
-tracker_list =[] # list for trackers
+tracker_list = [] # list for trackers
 # list for track ID
-track_id_list= deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'])
+track_id_list = deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',\
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
 
-debug = True
+debug = False
+
 
 def get_z_box(alist):
     z_box = []
@@ -34,6 +36,25 @@ def get_z_box(alist):
         z_box.append([float(elem[5]), float(elem[4]), float(elem[7]), float(elem[6])])
     
     return z_box
+
+
+def add_track_to_newlist(alist, matched_res, x_id):
+    new_list = []
+    for idx,elem in enumerate(alist):
+        if(idx not in matched_res[:,1]):
+            elem.append('-1')
+            new_list.append(elem) 
+        else:
+            temp_idx = np.where(matched_res[:,1] == idx)
+            temp_idx = temp_idx[0][0]
+            tra_idx = x_id[matched_res[temp_idx,0]]
+            # convert ABC... to 012...
+            elem.append(str(ord(tra_idx)-65))
+            new_list.append(elem) 
+
+    # print(new_list)
+    return new_list
+
 
 def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
     '''
@@ -103,7 +124,8 @@ def pipeline(z_box):
     # if debug:
     #    print('Frame:', frame_count)
        
-    x_box =[]
+    x_box = []
+    x_id = []
     # if debug: 
     #     for i in range(len(z_box)):
     #        img1= helpers.draw_box_label(img, z_box[i], box_color=(255, 0, 0))
@@ -113,14 +135,16 @@ def pipeline(z_box):
     if len(tracker_list) > 0:
         for trk in tracker_list:
             x_box.append(trk.box)
+            x_id.append(trk.id)
     
-    
+    # print(track_id_list)
     matched, unmatched_dets, unmatched_trks \
     = assign_detections_to_trackers(x_box, z_box, iou_thrd = 0.3)  
     if debug:
          print('Detection: ', z_box)
          print('x_box: ', x_box)
          print('matched:', matched)
+         # input()
          print('unmatched_det:', unmatched_dets)
          print('unmatched_trks:', unmatched_trks)
     
@@ -170,7 +194,7 @@ def pipeline(z_box):
                    
        
     # The list of tracks to be annotated  
-    good_tracker_list =[]
+    good_tracker_list = []
     for trk in tracker_list:
         if ((trk.hits >= min_hits) and (trk.no_losses <=max_age)):
              good_tracker_list.append(trk)
@@ -193,20 +217,37 @@ def pipeline(z_box):
        print('Ending good tracker_list: ',len(good_tracker_list))
     
        
-    return tracker_list
+    return matched, x_id
 
 
-def main():
+def KF_Tracking(base_directory):
 
-    base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
+    global frame_count
+    global tracker_list
+    global max_age
+    global min_hits
+    global track_id_list
+    global debug
+
     for subfolder in os.listdir(base_directory):
         sub_directory = base_directory + '/' + subfolder + '/dets_3d_filtered/'
-        # if not os.path.exists(store_directory):
-        #     os.makedirs(store_directory)
+        store_directory = base_directory + '/' + subfolder + '/dets_3d_track/'
+        if not os.path.exists(store_directory):
+            os.makedirs(store_directory)
+
+        # re-initialize
+        frame_count = 0
+        tracker_list = [] # list for trackers
+        # list for track ID
+        track_id_list = deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',\
+        'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
+        # print(track_id_list)
+        # print(len(tracker_list))
+        # input()
 
         for file_name in os.listdir(sub_directory):
             file_directory = sub_directory + file_name
-            # store_file_directory = store_directory + file_name
+            store_file_directory = store_directory + file_name
 
             # input()
             with open(file_directory) as f:
@@ -220,41 +261,89 @@ def main():
 
             f.close()
 
-            # print(alist[0][3])
-            # print(alist[0])
-            # input()
+
             z_box = get_z_box(alist)
             #print(z_box)
+            matched_res, x_id = pipeline(z_box) 
+            new_list = add_track_to_newlist(alist, matched_res, x_id)
+            # print(matched_res)
+            # print(x_id)
+            # input()
 
-            tracker_list = pipeline(z_box) 
-            print(tracker_list)
-            input()
+            if len(new_list) > 0:
 
+                # print(new_list)
+                # input()
+
+                # write file
+                with open(store_file_directory, 'w') as g:
+                    csv_writer = csv.writer(g)
+                    csv_writer.writerows(new_list)
+
+                g.close()
+
+            else:
+                file = open(store_file_directory, 'w')
+
+        print('finished '+subfolder+file_name)
+       
+            
+def filter_tracking():
+
+    for subfolder in os.listdir(base_directory):
+        sub_directory = base_directory + '/' + subfolder + '/dets_3d_track/'
+        store_directory = base_directory + '/' + subfolder + '/dets_3d_track_filtered/'
+        if not os.path.exists(store_directory):
+            os.makedirs(store_directory)
+
+        frame_idx = 0
+        traj_list = []
+
+        # read the last file and get the number of trajectories
+        last_file = os.listdir(sub_directory)[-1]
+        file_directory = sub_directory + last_file
+        with open(file_directory) as f:
+            data = f.read().splitlines()
+            alist = []
+            for line in data:
+                if line == '':
+                    pass
+                else:
+                    alist.append(line.split(','))
+        f.close()
+
+        # get the number of trajectories
+        tra_max = 0
+        for elem in alist:
+            if int(elem[-1]) >= tra_max:
+                tra_max = int(elem[-1]) 
+            else:
+                pass
+        tra_max += 1
+
+        for file_name in os.listdir(sub_directory):
+            file_directory = sub_directory + file_name
+            store_file_directory = store_directory + file_name
+
+            # input()
+            with open(file_directory) as f:
+                data = f.read().splitlines()
+                alist = []
+                for line in data:
+                    if line == '':
+                        pass
+                    else:
+                        alist.append(line.split(','))
+
+            f.close()
+            temp_traj_elem = np.ones(tra_max)
+            
+            frame_idx += 1
             
 
 
 
 if __name__ == "__main__":
-    main()
-
-    # det = detector.CarDetector()
-    
-    # if debug: # test on a sequence of images
-    #     images = [plt.imread(file) for file in glob.glob('./test_images/*.jpg')]
-        
-    #     for i in range(len(images))[0:7]:
-    #          image = images[i]
-    #          image_box = pipeline(image)   
-    #          plt.imshow(image_box)
-    #          plt.show()
-           
-    # else: # test on a video file.
-        
-    #     start=time.time()
-    #     output = 'test_v7.mp4'
-    #     clip1 = VideoFileClip("project_video.mp4")#.subclip(4,49) # The first 8 seconds doesn't have any cars...
-    #     clip = clip1.fl_image(pipeline)
-    #     clip.write_videofile(output, audio=False)
-    #     end  = time.time()
-        
-    #     print(round(end-start, 2), 'Seconds to finish')
+    base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
+    KF_Tracking(base_directory)
+    filter_tracking(base_directory)
