@@ -38,7 +38,7 @@ def find_index_class(alist, classname):
     return index_list
 
 
-def filter_pedestrian(alist):
+def filter_pedestrian_in_cyclist(alist):
     new_list = []
     ped_list = find_index_class(alist, 'pedestrian')
     cyc_list = find_index_class(alist, 'cyclist')
@@ -62,7 +62,7 @@ def filter_pedestrian(alist):
                     x_cyc = float(alist[j][11])
                     y_ped = float(alist[i][13])
                     y_cyc = float(alist[j][13])
-                    if abs(x_ped - x_cyc) < 2 and abs(y_ped - y_cyc) < 2:
+                    if abs(x_ped - x_cyc) < 1 and abs(y_ped - y_cyc) < 1:
                         # filter this pedestrian
                         flag = False
                         break
@@ -80,12 +80,54 @@ def filter_pedestrian(alist):
     else:
         return alist
 
+
+def filter_cyclist_in_car(alist):
+    new_list = []
+    ped_list = find_index_class(alist, 'pedestrian')
+    cyc_list = find_index_class(alist, 'cyclist')
+    car_list = find_index_class(alist, 'car')
+    #print(ped_list)
+    #print(cyc_list)
+
+    if len(car_list) > 0 and len(cyc_list) > 0:
+        for i in cyc_list:
+            flag = True
+            for j in car_list:
+                # IOU > 0.5
+                boxA = np.array([float(alist[i][4]), float(alist[i][5]), float(alist[i][6]), float(alist[i][7])])
+                boxB = np.array([float(alist[j][4]), float(alist[j][5]), float(alist[j][6]), float(alist[j][7])])
+                # print(boxA)
+                # print(boxB)
+
+                if bb_intersection_over_union(boxA, boxB) > 0.5:
+                    # abs(d_x)<2m, abs(d_y) < 2m
+                    x_ped = float(alist[i][11])
+                    x_cyc = float(alist[j][11])
+                    y_ped = float(alist[i][13])
+                    y_cyc = float(alist[j][13])
+                    if abs(x_ped - x_cyc) < 1 and abs(y_ped - y_cyc) < 1:
+                        # filter this pedestrian
+                        flag = False
+                        break
+
+            if flag is True:
+                new_list.append(alist[i])
+
+        for j in car_list:
+            new_list.append(alist[j]) 
+        for k in ped_list:
+            new_list.append(alist[k]) 
+
+        return new_list
+
+    else:
+        return alist
+
     
 
+def remove_overlap(base_directory):
 
-def main():
-
-    base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
+    # base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
     for subfolder in os.listdir(base_directory):
         sub_directory = base_directory + '/' + subfolder + '/dets_3d/'
         store_directory = base_directory + '/' + subfolder + '/dets_3d_filtered/'
@@ -110,7 +152,8 @@ def main():
             # print(data[0])
             # print(alist[0])
             # print(alist)
-            new_list = filter_pedestrian(alist)
+            new_list = filter_pedestrian_in_cyclist(alist)
+            new_list = filter_cyclist_in_car(new_list)
             # print(new_list)
 
             if len(new_list) > 0:
@@ -145,4 +188,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
+    remove_overlap(base_directory)

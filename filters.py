@@ -292,3 +292,10 @@ def filter_tracking(base_directory):
         new_traj_list = smooth_detection_class(traj_group_list, traj_list)
         # rewrite the 3d localization file
         write_3d_loc(new_traj_list, traj_list, traj_pre_idx, sub_directory, store_directory)
+
+
+if __name__ == "__main__":
+    base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
+    # smooth the tracking result
+    filter_tracking(base_directory)
+    print('#######################'+'FINISHED SMOOTHING TRACKING!!!!!!'+'#######################')
