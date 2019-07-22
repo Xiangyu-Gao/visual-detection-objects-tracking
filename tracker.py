@@ -8,7 +8,6 @@ from numpy import dot
 from scipy.linalg import inv, block_diag
 
 
-
 class Tracker(): # class for Kalman Filter-based tracker
     def __init__(self):
         # Initialize parametes for tracker (history)
@@ -63,9 +62,7 @@ class Tracker(): # class for Kalman Filter-based tracker
         R_diag_array = self.R_scaler * np.array([self.L, self.L, self.L, self.L])
         self.R = np.diag(R_diag_array)
         
-        
-        
-        
+            
     def kalman_filter(self, z): 
         '''
         Implement the Kalman Filter, including the predict and the update stages,
@@ -95,7 +92,8 @@ class Tracker(): # class for Kalman Filter-based tracker
         x = dot(self.F, x)
         self.P = dot(self.F, self.P).dot(self.F.T) + self.Q
         self.x_state = x.astype(int)
-        
+   
+
 if __name__ == "__main__":
     
     import matplotlib.pyplot as plt

@@ -60,9 +60,9 @@ def filter_pedestrian(alist):
                     # abs(d_x)<2m, abs(d_y) < 2m
                     x_ped = float(alist[i][11])
                     x_cyc = float(alist[j][11])
-                    z_ped = float(alist[i][13])
-                    z_cyc = float(alist[j][13])
-                    if abs(x_ped - x_cyc) < 2 and abs(z_ped - z_cyc) < 2:
+                    y_ped = float(alist[i][13])
+                    y_cyc = float(alist[j][13])
+                    if abs(x_ped - x_cyc) < 2 and abs(y_ped - y_cyc) < 2:
                         # filter this pedestrian
                         flag = False
                         break

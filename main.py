@@ -1,17 +1,17 @@
 import numpy as np
 import os
 import csv
-import numpy as np
 import glob
-import itertools
+
 from collections import deque
 from sklearn.utils.linear_assignment_ import linear_assignment
 
 import helpers
 import tracker
+import filters
 from tracker import Tracker
 from helpers import box_iou2
-
+from filters import filter_tracking
 
 
 # Global variables to be used by funcitons of VideoFileClop
@@ -100,28 +100,6 @@ def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
         matches = np.concatenate(matches,axis=0)
     
     return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
-
-
-# utility function for cluster_traj_portions function 
-def group_ranges(L):
-    """
-    Collapses a list of integers into a list of the start and end of
-    consecutive runs of numbers. Returns a generator of generators.
-    >>> [list(x) for x in group_ranges([1, 2, 3, 5, 6, 8])]
-    [[1, 3], [5, 6], [8]]
-    """
-    for w, z in itertools.groupby(L, lambda x, y=itertools.count(): next(y)-x):
-        grouped = list(z)
-        yield (x for x in [grouped[0], grouped[-1]][:len(grouped)])
-
-
-def cluster_traj_portions(traj_list):
-    for column in traj_list.T:
-        valid_idx = np.where(column != -1)
-        print(valid_idx)
-        for x in group_ranges(valid_idx):
-            print(x)
-        input()
 
 
 def pipeline(z_box):
@@ -290,72 +268,21 @@ def KF_Tracking(base_directory):
                 file = open(store_file_directory, 'w')
 
         print('finished '+subfolder+file_name)
+
+
        
-            
-def filter_tracking(base_directory):
-
-    for subfolder in os.listdir(base_directory):
-        sub_directory = base_directory + '/' + subfolder + '/dets_3d_track/'
-        store_directory = base_directory + '/' + subfolder + '/dets_3d_track_filtered/'
-        if not os.path.exists(store_directory):
-            os.makedirs(store_directory)
-
-        frame_idx = 0
-        traj_list = []
-        traj_pre_idx = []
-
-
-        # get the number of trajectories
-        tra_max = 20
-
-        for file_name in os.listdir(sub_directory):
-            file_directory = sub_directory + file_name
-            store_file_directory = store_directory + file_name
-
-            # input()
-            with open(file_directory) as f:
-                data = f.read().splitlines()
-                alist = []
-                for line in data:
-                    if line == '':
-                        pass
-                    else:
-                        alist.append(line.split(','))
-            f.close()
-
-            temp_traj_elem = np.ones(tra_max)
-            temp_traj_elem = -1*temp_traj_elem
-            temp_traj_idx = np.ones(tra_max)
-            temp_traj_idx = -1*temp_traj_idx
-            for e,elem in enumerate(alist):
-                ix = int(elem[-1])
-                i_class = int(elem[0])
-                if ix is not -1:
-                    temp_traj_elem[ix] = i_class
-                    temp_traj_idx[ix] = e
-                else:
-                    pass
-            
-            traj_list.append(temp_traj_elem)
-            traj_pre_idx.append(temp_traj_idx)
-            frame_idx += 1
-            # print(file_name)
-            # print(temp_traj_elem)
-            # print(temp_traj_idx)
-            # input()
-        
-        # print(traj_list)
-        traj_list = np.asarray(traj_list)
-        traj_pre_idx = np.asarray(traj_pre_idx)
-        # print(np.where(traj_list[:,5] != -1))
-
-        # clustering small trajectory portions
-        cluster_traj_portions(traj_list)
-
-
 if __name__ == "__main__":
     base_directory = 'D:/RawData/3D_loc_labels/2019_05_09/'
     # KF_Tracking(base_directory)
     filter_tracking(base_directory)
+
+
+    # ranges =[]
+    # data = [2, 3, 4, 5, 12, 13, 14, 15, 16, 17]
+    # for k,g in groupby(enumerate(data),lambda x:x[0]-x[1]):
+    #     group = list(map(itemgetter(1),g))
+    #     # group = list(map(int,group))
+    #     ranges.append((group[0],group[-1]))
+    # print(ranges)
 
 
