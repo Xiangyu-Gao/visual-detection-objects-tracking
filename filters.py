@@ -1,5 +1,6 @@
 import itertools
 import os
+import csv
 import numpy as np
 from operator import itemgetter
 from itertools import groupby
@@ -52,7 +53,9 @@ def cluster_traj_portions(traj_list):
 
 
 def smooth_detection_class(traj_group_list, traj_list):
-    
+    dims = traj_list.shape
+    new_traj_list = -1*np.ones(dims)
+
     for t, traj in enumerate(traj_group_list):
         for s, sub_traj in enumerate(traj):
             # print(t)
@@ -62,10 +65,12 @@ def smooth_detection_class(traj_group_list, traj_list):
             else:
                 start_frame = sub_traj[0]
                 end_frame = sub_traj[1]
+                new_traj_list[start_frame:end_frame+1, t] = traj_list[start_frame:end_frame+1, t] 
                 # print(start_frame)
                 # print(end_frame)
                 # smoothee the expection peak
-                print(traj_list[start_frame:end_frame+1, t])
+                # print(traj_list[start_frame:end_frame+1, t])
+                
                 if end_frame - start_frame + 1 <= 10:
                     counter_ay = traj_list[start_frame:end_frame+1, t]
                     num_1 = (counter_ay == 0).sum()
@@ -74,21 +79,23 @@ def smooth_detection_class(traj_group_list, traj_list):
                     class_max = max([num_1, num_2, num_3])
 
                     if class_max == num_1:
-                        traj_list[start_frame:end_frame+1, t] = 0
+                        new_traj_list[start_frame:end_frame+1, t] = 0
                     elif class_max == num_2:
-                        traj_list[start_frame:end_frame+1, t] = 1
+                        new_traj_list[start_frame:end_frame+1, t] = 1
                     elif class_max == num_3:
-                        traj_list[start_frame:end_frame+1, t] = 2
+                        new_traj_list[start_frame:end_frame+1, t] = 2
                     else:
                         pass
+
                 else:
                     for i in range(start_frame, end_frame+1):
                         counter_ay_start = max([start_frame, i-10])
                         counter_ay_end = min([end_frame, i+10])
                         counter_ay = traj_list[counter_ay_start:counter_ay_end+1, t]
                         # check if all class are same
-                        if np.all(counter_ay == traj_list[i,t]):
+                        if np.all(counter_ay == new_traj_list[i,t]):
                             pass
+
                         else:
                             num_1 = (counter_ay == 0).sum()
                             num_2 = (counter_ay == 1).sum()
@@ -96,18 +103,127 @@ def smooth_detection_class(traj_group_list, traj_list):
                             class_max = max([num_1, num_2, num_3])
 
                             if class_max == num_1:
-                                traj_list[i, t] = 0
+                                new_traj_list[i, t] = 0
                             elif class_max == num_2:
-                                traj_list[i, t] = 1
+                                new_traj_list[i, t] = 1
                             elif class_max == num_3:
-                                traj_list[i, t] = 2
+                                new_traj_list[i, t] = 2
                             else:
                                 pass
-                print(traj_list[start_frame:end_frame+1, t])
 
-                # final smooth to all same class
+                # print(new_traj_list[start_frame:end_frame+1, t])
 
-                input()     
+                # input()
+        # print(111)
+    return new_traj_list
+
+
+def write_3d_loc(new_traj_list, traj_list, traj_pre_idx, sub_directory, store_directory):
+
+    frameid = 0
+    for file_name in os.listdir(sub_directory):
+        file_directory = sub_directory + file_name
+        store_file_directory = store_directory + file_name
+
+        # input()
+        with open(file_directory) as f:
+            data = f.read().splitlines()
+            alist = []
+            for line in data:
+                if line == '':
+                    pass
+                else:
+                    alist.append(line.split(','))
+        f.close()
+
+        # print(type(alist[0][0]))
+        # print(traj_list.shape[0])
+        # print(new_traj_list.shape[1])
+        # input()
+        new_alist = []
+
+        if frameid == 0:
+            new_alist = alist
+
+        else:
+            for j in range(traj_list.shape[1]):
+                index = int(traj_pre_idx[frameid][j])
+                old_class = int(traj_list[frameid][j])
+                new_class = int(new_traj_list[frameid][j])
+                # print(index)
+
+                if  old_class == new_class and old_class != -1:
+                    new_alist.append(alist[index])
+                    # print(1)
+                elif old_class != -1 and new_class != -1:
+                    list_elem = alist[index]
+                    list_elem[0] = str(new_class)
+                    new_alist.append(list_elem)
+                    # print(2)
+                elif old_class != -1 and new_class == -1:
+                    # print(3)
+                    pass
+                elif old_class == -1 and new_class != -1:
+                    # print(4)
+                    pre_index = int(traj_pre_idx[frameid-1][j])
+                    nex_index = int(traj_pre_idx[frameid+1][j])
+                    if pre_index != -1:
+                        # open previous file
+                        # input()
+                        pre_file_directory = sub_directory + os.listdir(sub_directory)[frameid-1]
+                        with open(pre_file_directory) as pf:
+                            data = pf.read().splitlines()
+                            pre_alist = []
+                            for line in data:
+                                if line == '':
+                                    pass
+                                else:
+                                    pre_alist.append(line.split(','))
+                        pf.close()
+
+                        list_elem = pre_alist[pre_index]
+                        new_alist.append(list_elem)
+                    
+                    elif nex_index != -1:
+                        # open next file
+                        # input()
+                        nex_file_directory = sub_directory + os.listdir(sub_directory)[frameid+1]
+                        with open(nex_file_directory) as nf:
+                            data = nf.read().splitlines()
+                            nex_alist = []
+                            for line in data:
+                                if line == '':
+                                    pass
+                                else:
+                                    nex_alist.append(line.split(','))
+                        nf.close()
+
+                        list_elem = nex_alist[nex_index]
+                        new_alist.append(list_elem)
+                    
+                    else:
+                        pass
+
+                else:
+                    pass
+
+        frameid += 1
+        # print(alist)
+        # print(new_alist)
+        # input()
+        
+        # write to new storage directory
+        if len(new_alist) > 0:
+            # write file
+            with open(store_file_directory, 'w') as g:
+                csv_writer = csv.writer(g)
+                csv_writer.writerows(new_alist)
+            g.close()
+
+        else:
+            file = open(store_file_directory, 'w')
+
+        print('finished '+ file_name)
 
 
 def filter_tracking(base_directory):
@@ -173,4 +289,6 @@ def filter_tracking(base_directory):
         # print(traj_group_list)
 
         # smoothe the detection result
-        smooth_detection_class(traj_group_list, traj_list)
+        new_traj_list = smooth_detection_class(traj_group_list, traj_list)
+        # rewrite the 3d localization file
+        write_3d_loc(new_traj_list, traj_list, traj_pre_idx, sub_directory, store_directory)
